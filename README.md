@@ -163,7 +163,7 @@ Add the contents of `templates/ssh_config` to your local `~/.ssh/config`:
 
 ```sshconfig
 Host ewb-bastion
-    HostName <BASTION_PUBLIC_IP>
+    HostName 3.107.17.164
     User ec2-user
     IdentityFile ~/.ssh/ewb-lab.pem
     IdentitiesOnly yes
