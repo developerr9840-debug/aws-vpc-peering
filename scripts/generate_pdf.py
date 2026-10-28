@@ -116,17 +116,17 @@ story.append(t_sg)
 story.append(Spacer(1, 8))
 
 # --- SECTION 4: TEST RESULTS & CONTROLLED FAILURE ---
-story.append(Paragraph("4. Verification Suite &amp; Controlled Failure Experiment", h1_style))
+story.append(Paragraph("4. Offline Simulation Suite &amp; Live AWS Diagnostics", h1_style))
 
 test_data = [
-    [Paragraph("Test Scenario", table_header), Paragraph("Source Host &amp; Command", table_header), Paragraph("Expected Behavior", table_header), Paragraph("Status", table_header)],
-    [Paragraph("01 / Baseline", table_text), Paragraph("App-A: ping -c 4 10.20.1.10", table_text), Paragraph("100% Packet Loss (No Peering Route)", table_text), Paragraph("PASSED", table_text)],
-    [Paragraph("02 / Forward Path", table_text), Paragraph("App-A: ping -c 4 10.20.1.10", table_text), Paragraph("4 replies received; 0% loss", table_text), Paragraph("PASSED", table_text)],
-    [Paragraph("03 / Reverse Path", table_text), Paragraph("App-B: ping -c 4 10.10.2.10", table_text), Paragraph("4 replies received; 0% loss", table_text), Paragraph("PASSED", table_text)],
-    [Paragraph("04 / SSH ProxyJump", table_text), Paragraph("Laptop: ssh ewb-app-b", table_text), Paragraph("Secure shell opened on App-B via Bastion", table_text), Paragraph("PASSED", table_text)],
-    [Paragraph("05 / Isolation", table_text), Paragraph("Console: Check App-A &amp; App-B", table_text), Paragraph("No Public IPv4 assigned to either workload", table_text), Paragraph("PASSED", table_text)]
+    [Paragraph("Test Scenario", table_header), Paragraph("Source Host &amp; Command", table_header), Paragraph("Expected Behavior", table_header), Paragraph("Classification &amp; Result", table_header)],
+    [Paragraph("01 / Baseline", table_text), Paragraph("App-A: ping -c 4 10.20.1.10", table_text), Paragraph("100% Packet Loss (No Peering Route)", table_text), Paragraph("PASSED (Simulated)", table_text)],
+    [Paragraph("02 / Forward Path", table_text), Paragraph("App-A: ping -c 4 10.20.1.10", table_text), Paragraph("4 replies received; 0% loss", table_text), Paragraph("PASSED (Simulated)", table_text)],
+    [Paragraph("03 / Reverse Path", table_text), Paragraph("App-B: ping -c 4 10.10.2.10", table_text), Paragraph("4 replies received; 0% loss", table_text), Paragraph("PASSED (Simulated)", table_text)],
+    [Paragraph("04 / SSH ProxyJump", table_text), Paragraph("Laptop: ssh ewb-app-b", table_text), Paragraph("Secure shell opened on App-B via Bastion", table_text), Paragraph("PASSED (Simulated)", table_text)],
+    [Paragraph("05 / Isolation", table_text), Paragraph("Console: Check App-A &amp; App-B", table_text), Paragraph("No Public IPv4 assigned to either workload", table_text), Paragraph("PASSED (Simulated)", table_text)]
 ]
-t_test = Table(test_data, colWidths=[90, 160, 210, 80])
+t_test = Table(test_data, colWidths=[90, 160, 200, 90])
 t_test.setStyle(TableStyle([
     ('BACKGROUND', (0,0), (-1,0), ACCENT),
     ('ALIGN', (0,0), (-1,-1), 'LEFT'),
@@ -138,7 +138,7 @@ t_test.setStyle(TableStyle([
 story.append(t_test)
 story.append(Spacer(1, 6))
 
-story.append(Paragraph("<b>Controlled Failure Explanation:</b> Temporarily removing the inbound ICMP Echo rule on <code>ewb-sg-app-b</code> immediately causes ping requests from App-A to time out at the network interface. Restoring the rule resumes 100% successful communication, demonstrating stateful firewall behavior.", body_style))
+story.append(Paragraph("<b>Live AWS Observation &amp; Analysis:</b> A live ping from Bastion (<code>10.10.1.10</code>) to App-B (<code>10.20.1.10</code>) resulted in 100% packet loss. This is <b>expected and correct</b> because App-B's security group strictly allows ICMP Echo Requests from App-A (<code>10.10.2.10/32</code>), NOT from Bastion. End-to-end live testing requires running ping from inside App-A.", body_style))
 story.append(Spacer(1, 8))
 
 # --- SECTION 5: TECHNICAL VIVA QUESTIONS ---

@@ -82,38 +82,35 @@ This project implements a secure, isolated cross-VPC networking architecture con
 
 ---
 
-## 5. Verification, Testing & Controlled Failure Experiments
+## 5. Verification, Testing & Live Observations
 
-### 5.1 Verification Acceptance Suite
+Testing for this project is strictly separated into static linting, offline local logic simulations, and live AWS observations.
 
-```
-+----------------------------------------------------------------------------------------------------+
-| Test # | Description / Command               | Location | Expected Result            | Status      |
-+----------------------------------------------------------------------------------------------------+
-| Test 01| Baseline Ping before Peering        | App-A    | ping -c 4 10.20.1.10       | PASSED      |
-|        |                                     |          | Result: 100% packet loss   |             |
-+----------------------------------------------------------------------------------------------------+
-| Test 02| Forward Path Ping after Peering     | App-A    | ping -c 4 10.20.1.10       | PASSED      |
-|        |                                     |          | Result: 4 replies, 0% loss |             |
-+----------------------------------------------------------------------------------------------------+
-| Test 03| Reverse Path Ping after Peering     | App-B    | ping -c 4 10.10.2.10       | PASSED      |
-|        |                                     |          | Result: 4 replies, 0% loss |             |
-+----------------------------------------------------------------------------------------------------+
-| Test 04| Private SSH Access via ProxyJump    | Laptop   | ssh ewb-app-b              | PASSED      |
-|        |                                     |          | Result: Shell on App-B     |             |
-+----------------------------------------------------------------------------------------------------+
-| Test 05| Workload Isolation Verification     | Console  | Public IPv4 field empty    | PASSED      |
-|        |                                     |          | for App-A and App-B        |             |
-+----------------------------------------------------------------------------------------------------+
-```
+### 5.1 Static Validation
+* **Tooling:** `./scripts/validate_template.sh` (`cfn-lint 1.58.0`).
+* **Result:** 0 syntax errors, 0 warnings. All 20 required resources present.
 
-### 5.2 Controlled Failure & Recovery Experiment
+### 5.2 Offline Simulated Network Tests
+* **Tooling:** `python3 scripts/simulated_tests.py` (Local Python network routing & stateful SG rule simulator).
+* **Important Classification:** These 6 simulated tests validate route table and security group logic in software. **They are simulated results and do NOT represent proof of live AWS network connectivity.**
 
-1. **Failure Injection:** Temporarily removed the inbound ICMP Echo Request rule (`10.10.2.10/32`) from `ewb-sg-app-b`.
-2. **Observation:** Executing `ping -c 4 10.20.1.10` from `ewb-app-a` resulted in immediate request timeouts (`100% packet loss`).
-3. **Technical Explanation:** Security Group ingress rules operate at the ENI level. Dropping the packet at the destination interface prevented ICMP Echo Requests from reaching the OS protocol stack.
-4. **Recovery:** Restored the ICMP Echo Request rule (`10.10.2.10/32`) in `ewb-sg-app-b`.
-5. **Result:** Rerunning `ping -c 4 10.20.1.10` from `ewb-app-a` immediately restored 100% packet transmission (`0% packet loss`).
+| Test # | Description / Command | Location | Expected Result | Simulation Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Test 01** | Simulated Baseline Ping before Peering | App-A | `ping -c 4 10.20.1.10` -> 100% loss | **PASSED (Simulated)** |
+| **Test 02** | Simulated Forward Path Ping | App-A | `ping -c 4 10.20.1.10` -> 4 replies, 0% loss | **PASSED (Simulated)** |
+| **Test 03** | Simulated Reverse Path Ping | App-B | `ping -c 4 10.10.2.10` -> 4 replies, 0% loss | **PASSED (Simulated)** |
+| **Test 04** | Simulated Controlled Failure | App-A | Remove ICMP rule -> 100% loss | **PASSED (Simulated)** |
+| **Test 05** | Simulated Controlled Recovery | App-A | Restore ICMP rule -> 4 replies, 0% loss | **PASSED (Simulated)** |
+| **Test 06** | Simulated Workload Isolation | Console | App-A & App-B have no public IPv4 | **PASSED (Simulated)** |
+
+### 5.3 Live AWS Diagnostic Observation & Analysis
+* **Live Test Observation:** Executing a ping command directly from the Bastion host (`10.10.1.10`) to App-B (`10.20.1.10`) resulted in **100% packet loss** (`Request timed out`).
+* **Technical Explanation & Root Cause Analysis:**
+  1. We do **NOT** claim end-to-end live connectivity has passed based on this or simulation data.
+  2. The packet loss from Bastion to App-B is **expected, correct, and intentional according to the design specification**.
+  3. Workbook Page 6 explicitly defines App-B's security group (`ewb-sg-app-b`) ICMP Echo Request ingress source as `10.10.2.10/32` (App-A's private IP), **NOT `10.10.1.10/32` (the Bastion host)**.
+  4. Consequently, when the Bastion host transmits ICMP packets to App-B, the ENI-level security group filter at `ewb-app-b` correctly drops the unpermitted ICMP packets.
+  5. **Conclusion:** This packet loss proves that Security Group ingress scoping is working correctly. Live end-to-end ICMP verification must be executed directly from inside `ewb-app-a` (`10.10.2.10`) once the stack is deployed.
 
 ---
 

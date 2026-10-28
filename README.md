@@ -51,7 +51,8 @@ The infrastructure establishes secure, cross-VPC private connectivity between tw
 │   └── ssh_config              # Local SSH ProxyJump configuration
 ├── scripts/
 │   ├── validate_template.sh    # CloudFormation & YAML syntax linter
-│   └── simulated_tests.py     # Local network routing & SG logic simulator
+│   ├── simulated_tests.py     # Offline network routing & SG logic simulator
+│   └── generate_pdf.py         # Student project report PDF generator
 ├── docs/
 │   ├── architecture-diagram.png# High-resolution PNG architecture diagram
 │   ├── architecture.svg        # Scalable Vector Graphics architecture diagram
@@ -91,27 +92,29 @@ The infrastructure establishes secure, cross-VPC private connectivity between tw
 
 ---
 
-## 🧪 Local Validation & Verification
+## 🧪 Testing Distinction & Validation Summary
 
-Before deployment to AWS, execute local linting and logic simulation tests:
+Testing for this project is strictly categorized into three distinct domains:
 
-```bash
-# 1. Run CloudFormation Linter & Resource Checker
-./scripts/validate_template.sh
+### 1. Static Validation
+* Executed via `./scripts/validate_template.sh` (`cfn-lint 1.58.0` and Python YAML schema verification).
+* **Result:** 0 syntax errors, 0 warnings. All 20 required CloudFormation resources are defined.
 
-# 2. Run Offline Network Routing & Security Group Simulator
-python3 scripts/simulated_tests.py
-```
+### 2. Offline Simulated Network Tests
+* Executed via `python3 scripts/simulated_tests.py`.
+* **Note:** These 6 simulated tests validate route table and security group **logic** in software. They represent dry-run verification and are **not proof of live AWS network connectivity**.
+* **Simulated Test Results:**
+  - `Test 01 (Simulated Baseline)`: PASS (Ping fails before peering routes added)
+  - `Test 02 (Simulated Forward Path)`: PASS (App-A -> App-B 0% packet loss)
+  - `Test 03 (Simulated Reverse Path)`: PASS (App-B -> App-A 0% packet loss)
+  - `Test 04 (Simulated Controlled Failure)`: PASS (Removing SG ICMP rule drops traffic)
+  - `Test 05 (Simulated Controlled Recovery)`: PASS (Restoring SG ICMP rule resumes traffic)
+  - `Test 06 (Simulated Isolation Check)`: PASS (App-A & App-B have no public IPv4 addresses)
 
-### Expected Output
-- `cfn-lint`: Zero errors / zero warnings.
-- `simulated_tests.py`:
-  - `Test 01 (Baseline)`: PASS (Ping fails before peering routes added)
-  - `Test 02 (Forward Path)`: PASS (App-A -> App-B 0% packet loss)
-  - `Test 03 (Reverse Path)`: PASS (App-B -> App-A 0% packet loss)
-  - `Test 04 (Controlled Failure)`: PASS (Removing SG ICMP rule drops traffic)
-  - `Test 05 (Controlled Recovery)`: PASS (Restoring SG ICMP rule resumes traffic)
-  - `Test 06 (Isolation Check)`: PASS (App-A & App-B have no public IPv4 addresses)
+### 3. Live AWS Operational Observations & Diagnosis
+* **Observed Live Behavior:** Executing a ping directly from the Bastion host (`10.10.1.10`) to App-B (`10.20.1.10`) resulted in **100% packet loss** (`Request timed out`).
+* **Technical Analysis:** This packet loss is **expected, correct, and by design**. According to workbook page 6, App-B's security group (`ewb-sg-app-b`) strictly allows ICMP Echo Requests from App-A (`10.10.2.10/32`), **NOT from the Bastion host (`10.10.1.10/32`)**. The packet drop proves that Security Group ingress filtering is functioning correctly. End-to-end live ICMP verification requires running the ping directly inside App-A (`10.10.2.10`) after stack deployment.
+* **Status:** End-to-end live AWS connectivity is pending deployment and live execution inside App-A.
 
 ---
 
@@ -124,11 +127,14 @@ Create an EC2 RSA Key Pair named `ewb-lab` in `ap-southeast-2`:
 ```bash
 aws ec2 create-key-pair \
   --key-name ewb-lab \
+  --key-type rsa \
+  --key-format pem \
   --query 'KeyMaterial' \
   --output text > ~/.ssh/ewb-lab.pem
 
 chmod 400 ~/.ssh/ewb-lab.pem
 ```
+*Note: Store `~/.ssh/ewb-lab.pem` safely on your local client machine. Never upload or commit private keys to GitHub or EC2 instances.*
 
 ### Step 2: Deploy CloudFormation Stack
 ```bash
@@ -153,7 +159,7 @@ aws cloudformation wait stack-create-complete \
 
 ## 🔑 SSH ProxyJump Configuration & Testing
 
-Add the contents of `templates/ssh_config` to your `~/.ssh/config`:
+Add the contents of `templates/ssh_config` to your local `~/.ssh/config`:
 
 ```sshconfig
 Host ewb-bastion
@@ -209,4 +215,4 @@ aws cloudformation wait stack-delete-complete \
 
 ## 📄 Student Deliverable PDF
 
-The complete project report is compiled in `Akhil_EWB_VPC_Peering.pdf`. It contains all detailed technical answers, architecture breakdown, route table matrices, controlled failure explanations, and verification results.
+The complete project report is compiled in `Akhil_EWB_VPC_Peering.pdf`. It contains all detailed technical answers, architecture breakdown, route table matrices, controlled failure explanations, simulation logs, and live AWS diagnostic observations.
