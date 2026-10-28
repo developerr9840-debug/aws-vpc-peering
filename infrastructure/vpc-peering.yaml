@@ -1,0 +1,399 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  AWS CloudFormation Template for EWB Courses VPC Peering Student Project.
+  Builds two non-overlapping VPCs (VPC A and VPC B), subnets, route tables,
+  internet gateway for VPC A public subnet, VPC Peering connection, security groups,
+  and EC2 instances with fixed private IP addresses.
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of existing EC2 KeyPair for SSH access (e.g. ewb-lab)
+    Default: ewb-lab
+
+  SSHLocation:
+    Type: String
+    Description: Allowed IP address range for SSH access to Bastion host (CIDR format)
+    Default: 0.0.0.0/0
+    AllowedPattern: '(\d{1,3}\.){3}\d{1,3}/\d{1,2}'
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x
+
+  StudentName:
+    Type: String
+    Description: Student name for resource tagging
+    Default: Akhil
+
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: Parameter Store key for Amazon Linux 2023 AMI ID
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+  InstanceType:
+    Type: String
+    Description: EC2 Instance Type
+    Default: t3.micro
+
+Mappings:
+  NetworkConfig:
+    VpcA:
+      Cidr: 10.10.0.0/16
+      PublicSubnetCidr: 10.10.1.0/24
+      PrivateSubnetCidr: 10.10.2.0/24
+      BastionPrivateIp: 10.10.1.10
+      AppAPrivateIp: 10.10.2.10
+    VpcB:
+      Cidr: 10.20.0.0/16
+      PrivateSubnetCidr: 10.20.1.0/24
+      AppBPrivateIp: 10.20.1.10
+
+Resources:
+  # =========================================================================
+  # VPC A Network Resources
+  # =========================================================================
+  VpcA:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap [NetworkConfig, VpcA, Cidr]
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: ewb-vpc-a
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcA
+      CidrBlock: !FindInMap [NetworkConfig, VpcA, PublicSubnetCidr]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: ewb-a-public
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcA
+      CidrBlock: !FindInMap [NetworkConfig, VpcA, PrivateSubnetCidr]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: ewb-a-private
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  InternetGatewayA:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: ewb-igw-a
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  VpcGatewayAttachmentA:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VpcA
+      InternetGatewayId: !Ref InternetGatewayA
+
+  PublicRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VpcA
+      Tags:
+        - Key: Name
+          Value: ewb-rt-a-public
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  PublicSubnetRouteTableAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTableA
+
+  PublicRouteInternetA:
+    Type: AWS::EC2::Route
+    DependsOn: VpcGatewayAttachmentA
+    Properties:
+      RouteTableId: !Ref PublicRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGatewayA
+
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VpcA
+      Tags:
+        - Key: Name
+          Value: ewb-rt-a-private
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  PrivateSubnetRouteTableAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  # =========================================================================
+  # VPC B Network Resources
+  # =========================================================================
+  VpcB:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap [NetworkConfig, VpcB, Cidr]
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: ewb-vpc-b
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcB
+      CidrBlock: !FindInMap [NetworkConfig, VpcB, PrivateSubnetCidr]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: ewb-b-private
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  PrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VpcB
+      Tags:
+        - Key: Name
+          Value: ewb-rt-b-private
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  PrivateSubnetRouteTableAssociationB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTableB
+
+  # =========================================================================
+  # VPC Peering Connection & Peering Routes
+  # =========================================================================
+  VPCPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref VpcA
+      PeerVpcId: !Ref VpcB
+      Tags:
+        - Key: Name
+          Value: ewb-a-b-peer
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  PublicRoutePeeringA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTableA
+      DestinationCidrBlock: !FindInMap [NetworkConfig, VpcB, Cidr]
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
+  PrivateRoutePeeringA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      DestinationCidrBlock: !FindInMap [NetworkConfig, VpcB, Cidr]
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
+  PrivateRoutePeeringB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      DestinationCidrBlock: !FindInMap [NetworkConfig, VpcA, Cidr]
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
+  # =========================================================================
+  # Security Groups
+  # =========================================================================
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Bastion Host in Public Subnet A
+      VpcId: !Ref VpcA
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHLocation
+          Description: SSH access to Bastion host
+      Tags:
+        - Key: Name
+          Value: ewb-sg-bastion
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  AppASecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for App-A in Private Subnet A
+      VpcId: !Ref VpcA
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 10.10.1.10/32
+          Description: SSH from Bastion private IP
+        - IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
+          CidrIp: 10.20.1.10/32
+          Description: ICMP Echo Request from App-B private IP
+      Tags:
+        - Key: Name
+          Value: ewb-sg-app-a
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  AppBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for App-B in Private Subnet B
+      VpcId: !Ref VpcB
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 10.10.1.10/32
+          Description: SSH from Bastion private IP
+        - IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
+          CidrIp: 10.10.2.10/32
+          Description: ICMP Echo Request from App-A private IP
+      Tags:
+        - Key: Name
+          Value: ewb-sg-app-b
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  # =========================================================================
+  # EC2 Instances
+  # =========================================================================
+  BastionInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAmiId
+      KeyName: !Ref KeyPairName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref BastionSecurityGroup
+          PrivateIpAddress: !FindInMap [NetworkConfig, VpcA, BastionPrivateIp]
+          SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: ewb-bastion
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  AppAInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAmiId
+      KeyName: !Ref KeyPairName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: false
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref AppASecurityGroup
+          PrivateIpAddress: !FindInMap [NetworkConfig, VpcA, AppAPrivateIp]
+          SubnetId: !Ref PrivateSubnetA
+      Tags:
+        - Key: Name
+          Value: ewb-app-a
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+  AppBInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAmiId
+      KeyName: !Ref KeyPairName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: false
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref AppBSecurityGroup
+          PrivateIpAddress: !FindInMap [NetworkConfig, VpcB, AppBPrivateIp]
+          SubnetId: !Ref PrivateSubnetB
+      Tags:
+        - Key: Name
+          Value: ewb-app-b
+        - Key: Project
+          Value: EWB-VPC-Peering
+        - Key: Student
+          Value: !Ref StudentName
+
+Outputs:
+  VpcAId:
+    Description: VPC A ID
+    Value: !Ref VpcA
+  VpcBId:
+    Description: VPC B ID
+    Value: !Ref VpcB
+  PeeringConnectionId:
+    Description: VPC Peering Connection ID
+    Value: !Ref VPCPeeringConnection
+  BastionPublicIp:
+    Description: Public IP address of Bastion host
+    Value: !GetAtt BastionInstance.PublicIp
+  BastionPrivateIp:
+    Description: Private IP address of Bastion host
+    Value: !GetAtt BastionInstance.PrivateIp
+  AppAPrivateIp:
+    Description: Private IP address of App-A
+    Value: !GetAtt AppAInstance.PrivateIp
+  AppBPrivateIp:
+    Description: Private IP address of App-B
+    Value: !GetAtt AppBInstance.PrivateIp

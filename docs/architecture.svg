@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 650" width="100%" height="100%" style="background-color: #0d1117; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <linearGradient id="vpca-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f2937" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#111827" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="vpcb-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111827" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#1e293b" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="card-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#374151"/>
+      <stop offset="100%" stop-color="#1f2937"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Title & Banner -->
+  <rect x="0" y="0" width="950" height="60" fill="#1e293b"/>
+  <text x="30" y="38" fill="#f8fafc" font-size="20" font-weight="bold">AWS VPC Peering Architecture — EWB Cloud Labs</text>
+  <text x="750" y="38" fill="#94a3b8" font-size="14">Region: ap-southeast-2</text>
+
+  <!-- Laptop / External User -->
+  <g transform="translate(40, 100)" filter="url(#shadow)">
+    <rect x="0" y="0" width="140" height="80" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+    <text x="70" y="30" fill="#60a5fa" font-size="13" font-weight="bold" text-anchor="middle">Student Laptop</text>
+    <text x="70" y="50" fill="#94a3b8" font-size="11" text-anchor="middle">SSH Key: ewb-lab.pem</text>
+    <text x="70" y="66" fill="#94a3b8" font-size="10" text-anchor="middle">ProxyJump Admin</text>
+  </g>
+
+  <!-- Internet Connection Line -->
+  <path d="M 180 140 L 250 140" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,4"/>
+  <text x="215" y="130" fill="#60a5fa" font-size="10" text-anchor="middle">SSH / 22</text>
+
+  <!-- VPC A Boundary -->
+  <rect x="250" y="80" width="310" height="530" rx="12" fill="url(#vpca-grad)" stroke="#10b981" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="250" y="80" width="310" height="32" rx="12" fill="#065f46"/>
+  <text x="265" y="101" fill="#ecfdf5" font-size="14" font-weight="bold">VPC A: ewb-vpc-a (10.10.0.0/16)</text>
+
+  <!-- Internet Gateway ewb-igw-a -->
+  <g transform="translate(270, 125)" filter="url(#shadow)">
+    <rect x="0" y="0" width="270" height="35" rx="6" fill="#047857" stroke="#10b981" stroke-width="1"/>
+    <text x="135" y="22" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">Internet Gateway (ewb-igw-a)</text>
+  </g>
+
+  <!-- Public Subnet A -->
+  <rect x="270" y="175" width="270" height="175" rx="8" fill="#064e3b" fill-opacity="0.4" stroke="#34d399" stroke-dasharray="3,3"/>
+  <text x="280" y="195" fill="#a7f3d0" font-size="12" font-weight="bold">Public Subnet A: ewb-a-public (10.10.1.0/24)</text>
+  <text x="280" y="210" fill="#6ee7b7" font-size="10">Route Table: ewb-rt-a-public [0.0.0.0/0 -&gt; igw, 10.20.0.0/16 -&gt; pcx]</text>
+
+  <!-- Bastion EC2 -->
+  <g transform="translate(285, 220)" filter="url(#shadow)">
+    <rect x="0" y="0" width="240" height="115" rx="6" fill="url(#card-grad)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="15" y="22" fill="#f3f4f6" font-size="13" font-weight="bold">ewb-bastion (EC2)</text>
+    <text x="15" y="40" fill="#9ca3af" font-size="11">Private IP: 10.10.1.10</text>
+    <text x="15" y="56" fill="#34d399" font-size="11">Public IP: Enabled (Auto-assigned)</text>
+    <text x="15" y="72" fill="#9ca3af" font-size="11">SG: ewb-sg-bastion</text>
+    <text x="15" y="88" fill="#d1d5db" font-size="10">Ingress: TCP 22 from Admin IP</text>
+  </g>
+
+  <!-- Private Subnet A -->
+  <rect x="270" y="370" width="270" height="225" rx="8" fill="#1e3a8a" fill-opacity="0.3" stroke="#60a5fa" stroke-dasharray="3,3"/>
+  <text x="280" y="390" fill="#bfdbfe" font-size="12" font-weight="bold">Private Subnet A: ewb-a-private (10.10.2.0/24)</text>
+  <text x="280" y="405" fill="#93c5fd" font-size="10">Route Table: ewb-rt-a-private [10.20.0.0/16 -&gt; pcx]</text>
+
+  <!-- App-A EC2 -->
+  <g transform="translate(285, 418)" filter="url(#shadow)">
+    <rect x="0" y="0" width="240" height="160" rx="6" fill="url(#card-grad)" stroke="#60a5fa" stroke-width="1.5"/>
+    <text x="15" y="22" fill="#f3f4f6" font-size="13" font-weight="bold">ewb-app-a (EC2 Workload)</text>
+    <text x="15" y="40" fill="#60a5fa" font-size="11" font-weight="bold">Private IP: 10.10.2.10</text>
+    <text x="15" y="56" fill="#f87171" font-size="11">Public IP: None (No IGW Egress)</text>
+    <text x="15" y="72" fill="#9ca3af" font-size="11">SG: ewb-sg-app-a</text>
+    <text x="15" y="88" fill="#d1d5db" font-size="10">• Ingress TCP 22: 10.10.1.10/32</text>
+    <text x="15" y="102" fill="#d1d5db" font-size="10">• Ingress ICMP Echo: 10.20.1.10/32</text>
+    <text x="15" y="120" fill="#a7f3d0" font-size="10">Test 02: ping 10.20.1.10 (4 replies)</text>
+    <text x="15" y="135" fill="#fca5a5" font-size="10">Test 01 (Baseline): ping 10.20.1.10 (Fail)</text>
+  </g>
+
+  <!-- Peering Connection Bar -->
+  <g transform="translate(580, 240)" filter="url(#shadow)">
+    <rect x="0" y="0" width="90" height="180" rx="8" fill="#831843" stroke="#f43f5e" stroke-width="2"/>
+    <text x="45" y="30" fill="#ffe4e6" font-size="12" font-weight="bold" text-anchor="middle">VPC PEERING</text>
+    <text x="45" y="50" fill="#fecdd3" font-size="10" text-anchor="middle">ewb-a-b-peer</text>
+    <text x="45" y="70" fill="#fb7185" font-size="10" font-weight="bold" text-anchor="middle">pcx-xxxxxx</text>
+    <line x1="10" y1="85" x2="80" y2="85" stroke="#f43f5e" stroke-width="1"/>
+    <text x="45" y="105" fill="#fecdd3" font-size="9" text-anchor="middle">Non-Transitive</text>
+    <text x="45" y="120" fill="#fecdd3" font-size="9" text-anchor="middle">Private Path</text>
+    <text x="45" y="135" fill="#fecdd3" font-size="9" text-anchor="middle">No Internet Sharing</text>
+    <text x="45" y="155" fill="#4ade80" font-size="10" font-weight="bold" text-anchor="middle">Status: Active</text>
+  </g>
+
+  <!-- Peering Traffic Lines -->
+  <path d="M 540 280 L 580 280" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,3"/>
+  <path d="M 540 480 L 580 370" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,3"/>
+  <path d="M 670 370 L 710 480" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,3"/>
+
+  <!-- VPC B Boundary -->
+  <rect x="690" y="80" width="230" height="530" rx="12" fill="url(#vpcb-grad)" stroke="#a855f7" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="690" y="80" width="230" height="32" rx="12" fill="#581c87"/>
+  <text x="705" y="101" fill="#f3e8ff" font-size="14" font-weight="bold">VPC B: ewb-vpc-b (10.20.0.0/16)</text>
+
+  <!-- Private Subnet B -->
+  <rect x="705" y="370" width="200" height="225" rx="8" fill="#581c87" fill-opacity="0.3" stroke="#c084fc" stroke-dasharray="3,3"/>
+  <text x="715" y="390" fill="#e9d5ff" font-size="12" font-weight="bold">Private Subnet B: ewb-b-private</text>
+  <text x="715" y="405" fill="#d8b4fe" font-size="10">CIDR: 10.20.1.0/24</text>
+
+  <!-- App-B EC2 -->
+  <g transform="translate(715, 418)" filter="url(#shadow)">
+    <rect x="0" y="0" width="180" height="160" rx="6" fill="url(#card-grad)" stroke="#c084fc" stroke-width="1.5"/>
+    <text x="12" y="22" fill="#f3f4f6" font-size="12" font-weight="bold">ewb-app-b (EC2 Workload)</text>
+    <text x="12" y="40" fill="#c084fc" font-size="11" font-weight="bold">Private IP: 10.20.1.10</text>
+    <text x="12" y="56" fill="#f87171" font-size="11">Public IP: None</text>
+    <text x="12" y="72" fill="#9ca3af" font-size="11">SG: ewb-sg-app-b</text>
+    <text x="12" y="88" fill="#d1d5db" font-size="10">• Ingress SSH: 10.10.1.10/32</text>
+    <text x="12" y="102" fill="#d1d5db" font-size="10">• Ingress ICMP: 10.10.2.10/32</text>
+    <text x="12" y="120" fill="#a7f3d0" font-size="10">Test 03: ping 10.10.2.10 OK</text>
+    <text x="12" y="135" fill="#a7f3d0" font-size="10">Test 04: SSH ProxyJump OK</text>
+  </g>
+</svg>

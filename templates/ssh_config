@@ -1,0 +1,24 @@
+# SSH Configuration Guide for AWS VPC Peering Lab
+# Copy or append the content below to your local ~/.ssh/config file.
+# Replace BASTION_PUBLIC_IP with the actual public IP address of your ewb-bastion EC2 instance.
+# Ensure your private key ewb-lab.pem is stored at ~/.ssh/ewb-lab.pem with permissions 400 (chmod 400 ~/.ssh/ewb-lab.pem).
+
+Host ewb-bastion
+    HostName BASTION_PUBLIC_IP
+    User ec2-user
+    IdentityFile ~/.ssh/ewb-lab.pem
+    IdentitiesOnly yes
+
+Host ewb-app-a
+    HostName 10.10.2.10
+    User ec2-user
+    IdentityFile ~/.ssh/ewb-lab.pem
+    IdentitiesOnly yes
+    ProxyJump ewb-bastion
+
+Host ewb-app-b
+    HostName 10.20.1.10
+    User ec2-user
+    IdentityFile ~/.ssh/ewb-lab.pem
+    IdentitiesOnly yes
+    ProxyJump ewb-bastion
