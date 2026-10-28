@@ -27,7 +27,7 @@ The infrastructure establishes secure, cross-VPC private connectivity between tw
 |  | | [ewb-bastion] 10.10.1.10        | |                 | |                 | |  |
 |  | | (Public IPv4 Auto-assigned)     | |                 | | [ewb-app-b]     | |  |
 |  | +---------------------------------+ |                 | | 10.20.1.10      | |  |
-|  |                                     |                 | | (No Public IP)  | |  |
+|  |                                     | |                 | | (No Public IP)  | |  |
 |  | +---------------------------------+ |                 | +-----------------+ |  |
 |  | | Private Subnet: ewb-a-private   | |                 |                     |  |
 |  | | CIDR: 10.10.2.0/24             | |                 |                     |  |
@@ -80,15 +80,19 @@ The infrastructure establishes secure, cross-VPC private connectivity between tw
 
 ---
 
-## 🚦 Security Group Rules Matrix
+## 📸 AWS Deployment Evidence Checklist
 
-| Security Group | Ingress Traffic | Source IP / Range | Port / Protocol | Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| **ewb-sg-bastion** | SSH | Admin Public IP /32 | TCP / 22 | Administration from laptop |
-| **ewb-sg-app-a** | SSH | `10.10.1.10/32` | TCP / 22 | ProxyJump access from Bastion |
-| **ewb-sg-app-a** | ICMP Echo Request | `10.20.1.10/32` | Custom ICMP (8/0) | Verification ping from App-B |
-| **ewb-sg-app-b** | SSH | `10.10.1.10/32` | TCP / 22 | ProxyJump access from Bastion |
-| **ewb-sg-app-b** | ICMP Echo Request | `10.10.2.10/32` | Custom ICMP (8/0) | Verification ping from App-A |
+| Evidence Item | Status | Verification Detail |
+| :--- | :--- | :--- |
+| **CloudFormation Stack** | `CREATE_COMPLETE` | Stack `ewb-vpc-peering-lab` deployed successfully in `ap-southeast-2`. |
+| **EC2 Instances** | Running | `ewb-bastion`, `ewb-app-a`, and `ewb-app-b` state verified as `running`. |
+| **VPC Peering Connection** | `Active` | Connection `ewb-a-b-peer` confirmed active between VPC A and VPC B. |
+| **VPC A Route Table** | Verified | Route table `ewb-rt-a-private` contains route `10.20.0.0/16` -> `pcx-...`. |
+| **VPC B Route Table** | Verified | Route table `ewb-rt-b-private` contains route `10.10.0.0/16` -> `pcx-...`. |
+| **App-A Inbound Rules** | Verified | `ewb-sg-app-a` allows TCP 22 from `10.10.1.10/32` & ICMP from `10.20.1.10/32`. |
+| **App-B Inbound Rules** | Verified | `ewb-sg-app-b` allows TCP 22 from `10.10.1.10/32` & ICMP from `10.10.2.10/32`. |
+| **App-A to App-B Connectivity**| Retesting Outstanding | Initial test reported 100% packet loss; live reachability retesting pending. |
+| **App-B to App-A Connectivity**| Retesting Outstanding | Reverse path reachability retesting pending. |
 
 ---
 
@@ -111,10 +115,16 @@ Testing for this project is strictly categorized into three distinct domains:
   - `Test 05 (Simulated Controlled Recovery)`: PASS (Restoring SG ICMP rule resumes traffic)
   - `Test 06 (Simulated Isolation Check)`: PASS (App-A & App-B have no public IPv4 addresses)
 
-### 3. Live AWS Operational Observations & Diagnosis
-* **Observed Live Behavior:** Executing a ping directly from the Bastion host (`10.10.1.10`) to App-B (`10.20.1.10`) resulted in **100% packet loss** (`Request timed out`).
-* **Technical Analysis:** This packet loss is **expected, correct, and by design**. According to workbook page 6, App-B's security group (`ewb-sg-app-b`) strictly allows ICMP Echo Requests from App-A (`10.10.2.10/32`), **NOT from the Bastion host (`10.10.1.10/32`)**. The packet drop proves that Security Group ingress filtering is functioning correctly. End-to-end live ICMP verification requires running the ping directly inside App-A (`10.10.2.10`) after stack deployment.
-* **Status:** End-to-end live AWS connectivity is pending deployment and live execution inside App-A.
+### 3. Live AWS Operational Verification & Troubleshooting
+* **Observed Live Behavior:** Initial live ping tests from App-A (`10.10.2.10`) to App-B (`10.20.1.10`) and from Bastion (`10.10.1.10`) to App-B (`10.20.1.10`) reported 100% packet loss (`Request timed out`).
+* **Troubleshooting & Technical Analysis:**
+  1. A configured peering route in route tables alone does not guarantee end-to-end connectivity.
+  2. For pings originating from Bastion (`10.10.1.10`), packet loss is expected because `ewb-sg-app-b` strictly permits ICMP Echo Requests from App-A (`10.10.2.10/32`), NOT Bastion (`10.10.1.10/32`).
+  3. For pings originating from App-A (`10.10.2.10`), 100% packet loss indicates live troubleshooting is required before marking success:
+     - Verify instance OS firewall / `iptables` settings on Amazon Linux 2023.
+     - Confirm EC2 status checks and ENI private IP assignments (`10.10.2.10` and `10.20.1.10`).
+     - Re-confirm route table subnet associations for `ewb-a-private` and `ewb-b-private`.
+* **Verification Status:** Infrastructure deployment is confirmed (`CREATE_COMPLETE`), but live end-to-end connectivity retesting remains **outstanding**. End-to-end connectivity cannot be marked successful until retested live.
 
 ---
 
@@ -163,7 +173,7 @@ Add the contents of `templates/ssh_config` to your local `~/.ssh/config`:
 
 ```sshconfig
 Host ewb-bastion
-    HostName 3.107.17.164
+    HostName <BASTION_PUBLIC_IP>
     User ec2-user
     IdentityFile ~/.ssh/ewb-lab.pem
     IdentitiesOnly yes
@@ -215,4 +225,4 @@ aws cloudformation wait stack-delete-complete \
 
 ## 📄 Student Deliverable PDF
 
-The complete project report is compiled in `Akhil_EWB_VPC_Peering.pdf`. It contains all detailed technical answers, architecture breakdown, route table matrices, controlled failure explanations, simulation logs, and live AWS diagnostic observations.
+The complete project report is compiled in `Akhil_EWB_VPC_Peering.pdf`. It contains all detailed technical answers, architecture breakdown, route table matrices, controlled failure explanations, simulation logs, evidence checklist, and live AWS diagnostic observations.

@@ -82,15 +82,27 @@ This project implements a secure, isolated cross-VPC networking architecture con
 
 ---
 
-## 5. Verification, Testing & Live Observations
+## 5. Verification, Evidence Checklist & Live Diagnostics
 
 Testing for this project is strictly separated into static linting, offline local logic simulations, and live AWS observations.
 
-### 5.1 Static Validation
+### 5.1 Deployment Evidence Checklist
+
+- [x] **CloudFormation Stack Creation:** Stack `ewb-vpc-peering-lab` status confirmed as `CREATE_COMPLETE`.
+- [x] **EC2 Workloads Running:** `ewb-bastion`, `ewb-app-a`, and `ewb-app-b` confirmed in `running` state.
+- [x] **AWS VPC Peering Connection:** `ewb-a-b-peer` reports status `Active` between VPC A (`10.10.0.0/16`) and VPC B (`10.20.0.0/16`).
+- [x] **VPC A Route Table:** Route table `ewb-rt-a-private` associated with `ewb-a-private` includes active route `10.20.0.0/16` -> `pcx-...`.
+- [x] **VPC B Route Table:** Route table `ewb-rt-b-private` associated with `ewb-b-private` includes active route `10.10.0.0/16` -> `pcx-...`.
+- [x] **App-A Inbound Rules:** Security group `ewb-sg-app-a` allows SSH from `10.10.1.10/32` and ICMP Echo from `10.20.1.10/32`.
+- [x] **App-B Inbound Rules:** Security group `ewb-sg-app-b` allows SSH from `10.10.1.10/32` and ICMP Echo from `10.10.2.10/32`.
+- [ ] **App-A to App-B Connectivity:** Live reachability test initially reported 100% packet loss; retesting is **outstanding**.
+- [ ] **App-B to App-A Connectivity:** Live reverse reachability retesting is **outstanding**.
+
+### 5.2 Static Validation
 * **Tooling:** `./scripts/validate_template.sh` (`cfn-lint 1.58.0`).
 * **Result:** 0 syntax errors, 0 warnings. All 20 required resources present.
 
-### 5.2 Offline Simulated Network Tests
+### 5.3 Offline Simulated Network Tests
 * **Tooling:** `python3 scripts/simulated_tests.py` (Local Python network routing & stateful SG rule simulator).
 * **Important Classification:** These 6 simulated tests validate route table and security group logic in software. **They are simulated results and do NOT represent proof of live AWS network connectivity.**
 
@@ -103,14 +115,16 @@ Testing for this project is strictly separated into static linting, offline loca
 | **Test 05** | Simulated Controlled Recovery | App-A | Restore ICMP rule -> 4 replies, 0% loss | **PASSED (Simulated)** |
 | **Test 06** | Simulated Workload Isolation | Console | App-A & App-B have no public IPv4 | **PASSED (Simulated)** |
 
-### 5.3 Live AWS Diagnostic Observation & Analysis
-* **Live Test Observation:** Executing a ping command directly from the Bastion host (`10.10.1.10`) to App-B (`10.20.1.10`) resulted in **100% packet loss** (`Request timed out`).
-* **Technical Explanation & Root Cause Analysis:**
-  1. We do **NOT** claim end-to-end live connectivity has passed based on this or simulation data.
-  2. The packet loss from Bastion to App-B is **expected, correct, and intentional according to the design specification**.
-  3. Workbook Page 6 explicitly defines App-B's security group (`ewb-sg-app-b`) ICMP Echo Request ingress source as `10.10.2.10/32` (App-A's private IP), **NOT `10.10.1.10/32` (the Bastion host)**.
-  4. Consequently, when the Bastion host transmits ICMP packets to App-B, the ENI-level security group filter at `ewb-app-b` correctly drops the unpermitted ICMP packets.
-  5. **Conclusion:** This packet loss proves that Security Group ingress scoping is working correctly. Live end-to-end ICMP verification must be executed directly from inside `ewb-app-a` (`10.10.2.10`) once the stack is deployed.
+### 5.4 Live AWS Diagnostic Observation & Troubleshooting Status
+* **Live Test Observation:** Initial live ping tests from App-A (`10.10.2.10`) to App-B (`10.20.1.10`) reported **100% packet loss** (`Request timed out`).
+* **Technical Explanation & Troubleshooting Analysis:**
+  1. A configured peering route in route tables alone does not guarantee end-to-end connectivity. End-to-end connectivity **cannot be marked successful** until live reachability is retested and confirmed.
+  2. For pings originating from Bastion (`10.10.1.10`), packet loss is expected because `ewb-sg-app-b` strictly permits ICMP Echo Requests from App-A (`10.10.2.10/32`), NOT Bastion (`10.10.1.10/32`).
+  3. For pings originating from App-A (`10.10.2.10`), 100% packet loss indicates live troubleshooting is required before marking success:
+     - Verify instance OS firewall / `iptables` settings on Amazon Linux 2023.
+     - Confirm EC2 status checks and ENI private IP assignments (`10.10.2.10` and `10.20.1.10`).
+     - Re-confirm route table subnet associations for `ewb-a-private` and `ewb-b-private`.
+* **Verification Status:** Infrastructure deployment is confirmed (`CREATE_COMPLETE`), but live end-to-end connectivity retesting remains **outstanding**.
 
 ---
 

@@ -92,19 +92,19 @@ t_inv.setStyle(TableStyle([
 story.append(t_inv)
 story.append(Spacer(1, 8))
 
-# --- SECTION 3: ROUTE TABLES & SECURITY GROUPS ---
-story.append(Paragraph("3. Ingress Security Rules Matrix", h1_style))
-
-sg_data = [
-    [Paragraph("Security Group", table_header), Paragraph("Ingress Protocol", table_header), Paragraph("Port / Type", table_header), Paragraph("Source CIDR / Host", table_header), Paragraph("Purpose / Rationale", table_header)],
-    [Paragraph("ewb-sg-bastion", table_text), Paragraph("TCP", table_text), Paragraph("Port 22", table_text), Paragraph("&lt;Admin-IP&gt;/32", table_text), Paragraph("SSH access from student laptop", table_text)],
-    [Paragraph("ewb-sg-app-a", table_text), Paragraph("TCP", table_text), Paragraph("Port 22", table_text), Paragraph("10.10.1.10/32", table_text), Paragraph("ProxyJump SSH from Bastion", table_text)],
-    [Paragraph("ewb-sg-app-a", table_text), Paragraph("ICMP", table_text), Paragraph("Echo (8/0)", table_text), Paragraph("10.20.1.10/32", table_text), Paragraph("Cross-VPC ping from App-B", table_text)],
-    [Paragraph("ewb-sg-app-b", table_text), Paragraph("TCP", table_text), Paragraph("Port 22", table_text), Paragraph("10.10.1.10/32", table_text), Paragraph("ProxyJump SSH from Bastion", table_text)],
-    [Paragraph("ewb-sg-app-b", table_text), Paragraph("ICMP", table_text), Paragraph("Echo (8/0)", table_text), Paragraph("10.10.2.10/32", table_text), Paragraph("Cross-VPC ping from App-A", table_text)]
+# --- SECTION 3: DEPLOYMENT EVIDENCE CHECKLIST ---
+story.append(Paragraph("3. Deployment Evidence Checklist", h1_style))
+ev_data = [
+    [Paragraph("Evidence Item", table_header), Paragraph("Verified Status", table_header), Paragraph("Console / Observation Detail", table_header)],
+    [Paragraph("CloudFormation Stack", table_text), Paragraph("CREATE_COMPLETE", table_text), Paragraph("Stack ewb-vpc-peering-lab created successfully.", table_text)],
+    [Paragraph("EC2 Workloads", table_text), Paragraph("Running", table_text), Paragraph("Instances ewb-bastion, ewb-app-a, ewb-app-b running.", table_text)],
+    [Paragraph("VPC Peering Connection", table_text), Paragraph("Active", table_text), Paragraph("Peering connection ewb-a-b-peer active between VPCs.", table_text)],
+    [Paragraph("VPC A &amp; B Route Tables", table_text), Paragraph("Verified", table_text), Paragraph("Routes 10.20.0.0/16 and 10.10.0.0/16 targeted to pcx ID.", table_text)],
+    [Paragraph("App-A &amp; App-B Security Groups", table_text), Paragraph("Verified", table_text), Paragraph("Ingress SSH TCP 22 &amp; ICMP Echo rules scoped correctly.", table_text)],
+    [Paragraph("App-A to App-B Ping", table_text), Paragraph("Retesting Outstanding", table_text), Paragraph("Initial ping reported 100% loss; live retest pending.", table_text)]
 ]
-t_sg = Table(sg_data, colWidths=[100, 80, 80, 110, 170])
-t_sg.setStyle(TableStyle([
+t_ev = Table(ev_data, colWidths=[150, 130, 260])
+t_ev.setStyle(TableStyle([
     ('BACKGROUND', (0,0), (-1,0), SECONDARY),
     ('ALIGN', (0,0), (-1,-1), 'LEFT'),
     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -112,7 +112,7 @@ t_sg.setStyle(TableStyle([
     ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, BG_LIGHT]),
     ('PADDING', (0,0), (-1,-1), 3)
 ]))
-story.append(t_sg)
+story.append(t_ev)
 story.append(Spacer(1, 8))
 
 # --- SECTION 4: TEST RESULTS & CONTROLLED FAILURE ---
@@ -138,7 +138,7 @@ t_test.setStyle(TableStyle([
 story.append(t_test)
 story.append(Spacer(1, 6))
 
-story.append(Paragraph("<b>Live AWS Observation &amp; Analysis:</b> A live ping from Bastion (<code>10.10.1.10</code>) to App-B (<code>10.20.1.10</code>) resulted in 100% packet loss. This is <b>expected and correct</b> because App-B's security group strictly allows ICMP Echo Requests from App-A (<code>10.10.2.10/32</code>), NOT from Bastion. End-to-end live testing requires running ping from inside App-A.", body_style))
+story.append(Paragraph("<b>Live AWS Diagnostic &amp; Retesting Status:</b> While infrastructure creation is confirmed (<code>CREATE_COMPLETE</code>), initial live pings from App-A to App-B reported 100% packet loss. A configured peering route alone does not prove end-to-end connectivity. Live reachability retesting remains outstanding.", body_style))
 story.append(Spacer(1, 8))
 
 # --- SECTION 5: TECHNICAL VIVA QUESTIONS ---
